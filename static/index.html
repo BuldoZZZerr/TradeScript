@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Торговый скрипт BingX</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --green: #3fb950;
+      --red: #f85149;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 1.5rem;
+      line-height: 1.5;
+    }
+    h1 { font-size: 1.5rem; margin: 0 0 1rem; color: var(--text); }
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    section h2 { font-size: 1rem; margin: 0 0 0.75rem; color: var(--muted); font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.75rem 1rem; }
+    label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; }
+    input, select {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { filter: brightness(1.1); }
+    .btn-danger { background: var(--red); color: #fff; }
+    .btn-danger:hover { filter: brightness(1.1); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
+    .status-cards { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+    .card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem 1rem;
+      min-width: 140px;
+    }
+    .card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; }
+    .card .value { font-size: 1.1rem; font-weight: 600; margin-top: 0.25rem; }
+    .log-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 0.75rem;
+      height: 280px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .log-box:empty::before { content: 'Лог пуст. Запустите скрипт.'; color: var(--muted); }
+    .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.8rem; }
+    .badge-running { background: var(--green); color: #fff; }
+    .badge-stopped { background: var(--muted); color: var(--bg); }
+    .msg { margin-top: 0.5rem; font-size: 0.85rem; }
+    .msg.err { color: var(--red); }
+    .msg.ok { color: var(--green); }
+  </style>
+</head>
+<body>
+  <h1>Торговый скрипт BingX (trade_loop)</h1>
+
+  <section>
+    <h2>Настройки</h2>
+    <form id="form">
+      <div class="grid">
+        <div>
+          <label>API Key</label>
+          <input type="password" name="API_KEY" id="API_KEY" placeholder="API_KEY">
+        </div>
+        <div>
+          <label>API Secret</label>
+          <input type="password" name="API_SECRET" id="API_SECRET" placeholder="API_SECRET">
+        </div>
+        <div>
+          <label>Биржа</label>
+          <select name="EXCHANGE_ID" id="EXCHANGE_ID">
+            <option value="bingx" selected>BingX</option>
+            <option value="bybit">Bybit</option>
+            <option value="binance">Binance</option>
+          </select>
+        </div>
+        <div>
+          <label>Пара</label>
+          <input type="text" name="SYMBOL" id="SYMBOL" value="BTC/USDT" placeholder="BTC/USDT">
+        </div>
+        <div>
+          <label>Сумма USDT</label>
+          <input type="number" name="AMOUNT_USDT" id="AMOUNT_USDT" value="50" min="1" step="1">
+        </div>
+        <div>
+          <label>Прибыль X %</label>
+          <input type="number" name="X" id="X" value="0.5" min="0" step="0.1" placeholder="0.5">
+        </div>
+        <div>
+          <label>Пауза после продажи (сек)</label>
+          <input type="number" name="WAIT_AFTER_SELL_SEC" id="WAIT_AFTER_SELL_SEC" value="300" min="60">
+        </div>
+        <div>
+          <label>Sandbox (testnet)</label>
+          <select name="USE_SANDBOX" id="USE_SANDBOX">
+            <option value="true">Да</option>
+            <option value="false">Нет</option>
+          </select>
+        </div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="btn btn-primary">Сохранить настройки</button>
+        <span id="configMsg" class="msg"></span>
+      </div>
+    </form>
+  </section>
+
+  <section>
+    <h2>Управление</h2>
+    <div class="actions">
+      <span id="runningBadge" class="badge badge-stopped">Скрипт остановлен</span>
+      <button type="button" id="btnStart" class="btn btn-primary">Запустить</button>
+      <button type="button" id="btnStop" class="btn btn-danger" disabled>Остановить</button>
+    </div>
+    <div id="controlMsg" class="msg"></div>
+  </section>
+
+  <section>
+    <h2>Текущий статус</h2>
+    <div class="status-cards">
+      <div class="card">
+        <div class="label">Цена покупки</div>
+        <div class="value" id="buyPrice">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Целевая цена продажи</div>
+        <div class="value" id="targetPrice">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Статус</div>
+        <div class="value" id="statusText">—</div>
+      </div>
+      <div class="card">
+        <div class="label">Обновлено</div>
+        <div class="value" id="updatedAt">—</div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Лог</h2>
+    <div class="log-box" id="logBox"></div>
+  </section>
+
+  <script>
+    const logBox = document.getElementById('logBox');
+    const buyPriceEl = document.getElementById('buyPrice');
+    const targetPriceEl = document.getElementById('targetPrice');
+    const statusTextEl = document.getElementById('statusText');
+    const updatedAtEl = document.getElementById('updatedAt');
+    const runningBadge = document.getElementById('runningBadge');
+    const btnStart = document.getElementById('btnStart');
+    const btnStop = document.getElementById('btnStop');
+    const controlMsg = document.getElementById('controlMsg');
+    const configMsg = document.getElementById('configMsg');
+
+    function api(path, opts = {}) {
+      return fetch(path, { ...opts, headers: { 'Content-Type': 'application/json', ...opts.headers } });
+    }
+
+    async function loadConfig() {
+      const r = await api('/api/config');
+      const c = await r.json();
+      document.getElementById('API_KEY').value = c.API_KEY || '';
+      document.getElementById('API_SECRET').value = c.API_SECRET || '';
+      document.getElementById('EXCHANGE_ID').value = c.EXCHANGE_ID || 'bingx';
+      document.getElementById('SYMBOL').value = c.SYMBOL || 'BTC/USDT';
+      document.getElementById('AMOUNT_USDT').value = c.AMOUNT_USDT || '50';
+      document.getElementById('X').value = c.X || '0.5';
+      document.getElementById('WAIT_AFTER_SELL_SEC').value = c.WAIT_AFTER_SELL_SEC || '300';
+      document.getElementById('USE_SANDBOX').value = (c.USE_SANDBOX === 'true' || c.USE_SANDBOX === true) ? 'true' : 'false';
+    }
+
+    async function refreshStatus() {
+      try {
+        const [sr, lr, rr] = await Promise.all([
+          api('/api/status'),
+          api('/api/logs?lines=100'),
+          api('/api/running')
+        ]);
+        const status = await sr.json();
+        const logs = await lr.json();
+        const running = (await rr.json()).running;
+
+        if (status.buy_price != null) buyPriceEl.textContent = Number(status.buy_price).toFixed(4);
+        else buyPriceEl.textContent = '—';
+        if (status.target_price != null) targetPriceEl.textContent = Number(status.target_price).toFixed(4);
+        else targetPriceEl.textContent = '—';
+        statusTextEl.textContent = status.status || '—';
+        updatedAtEl.textContent = status.updated_at ? new Date(status.updated_at).toLocaleString('ru') : '—';
+
+        logBox.textContent = (logs.lines || []).join('').trim() || '';
+        logBox.scrollTop = logBox.scrollHeight;
+
+        if (running) {
+          runningBadge.textContent = 'Скрипт запущен';
+          runningBadge.className = 'badge badge-running';
+          btnStart.disabled = true;
+          btnStop.disabled = false;
+        } else {
+          runningBadge.textContent = 'Скрипт остановлен';
+          runningBadge.className = 'badge badge-stopped';
+          btnStart.disabled = false;
+          btnStop.disabled = true;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    document.getElementById('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      configMsg.textContent = '';
+      const data = {
+        API_KEY: document.getElementById('API_KEY').value,
+        API_SECRET: document.getElementById('API_SECRET').value,
+        EXCHANGE_ID: document.getElementById('EXCHANGE_ID').value,
+        SYMBOL: document.getElementById('SYMBOL').value,
+        AMOUNT_USDT: document.getElementById('AMOUNT_USDT').value,
+        X: document.getElementById('X').value,
+        WAIT_AFTER_SELL_SEC: document.getElementById('WAIT_AFTER_SELL_SEC').value,
+        USE_SANDBOX: document.getElementById('USE_SANDBOX').value
+      };
+      try {
+        const r = await api('/api/config', { method: 'POST', body: JSON.stringify(data) });
+        const j = await r.json();
+        if (r.ok) {
+          configMsg.textContent = 'Настройки сохранены.';
+          configMsg.className = 'msg ok';
+        } else {
+          configMsg.textContent = j.error || 'Ошибка';
+          configMsg.className = 'msg err';
+        }
+      } catch (err) {
+        configMsg.textContent = err.message || 'Ошибка сети';
+        configMsg.className = 'msg err';
+      }
+    });
+
+    btnStart.addEventListener('click', async () => {
+      controlMsg.textContent = '';
+      try {
+        const r = await api('/api/start', { method: 'POST' });
+        const j = await r.json();
+        if (r.ok && j.ok) {
+          controlMsg.textContent = 'Скрипт запущен.';
+          controlMsg.className = 'msg ok';
+          refreshStatus();
+        } else {
+          controlMsg.textContent = j.error || 'Не удалось запустить';
+          controlMsg.className = 'msg err';
+        }
+      } catch (err) {
+        controlMsg.textContent = err.message || 'Ошибка сети';
+        controlMsg.className = 'msg err';
+      }
+    });
+
+    btnStop.addEventListener('click', async () => {
+      controlMsg.textContent = '';
+      try {
+        await api('/api/stop', { method: 'POST' });
+        controlMsg.textContent = 'Скрипт остановлен.';
+        controlMsg.className = 'msg ok';
+        refreshStatus();
+      } catch (err) {
+        controlMsg.textContent = err.message || 'Ошибка сети';
+        controlMsg.className = 'msg err';
+      }
+    });
+
+    loadConfig();
+    refreshStatus();
+    setInterval(refreshStatus, 3000);
+  </script>
+</body>
+</html>
